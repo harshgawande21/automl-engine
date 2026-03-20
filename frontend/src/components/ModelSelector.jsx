@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AlertCircle, Play } from 'lucide-react';
+import environment from '../config/environment';
 import { useState } from 'react';
 import Button from './common/Button';
 
@@ -51,7 +52,7 @@ const ModelSelector = ({ filename, columns, onTrainStart, onTrainComplete }) => 
         onTrainStart();
 
         try {
-            const response = await axios.post('http://localhost:8000/train/', {
+            const response = await axios.post(`${environment.API_BASE_URL}/train/`, {
                 filename,
                 target_column: targetColumn,
                 model_type: modelType,
@@ -61,7 +62,7 @@ const ModelSelector = ({ filename, columns, onTrainStart, onTrainComplete }) => 
             // Save to history
             const result = response.data;
             try {
-                await axios.post('http://localhost:8000/history/', {
+                await axios.post(`${environment.API_BASE_URL}/history/`, {
                     filename,
                     model_type: modelType,
                     model_category: result.model_category || 'unknown',

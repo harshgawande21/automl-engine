@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Database, Table } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import environment from '../config/environment';
 
 const DataPreview = ({ fileData }) => {
     const [previewData, setPreviewData] = useState(null);
@@ -8,7 +9,7 @@ const DataPreview = ({ fileData }) => {
 
     useEffect(() => {
         if (fileData?.filename) {
-            axios.post(`http://localhost:8000/data/preview?filename=${fileData.filename}`)
+            axios.post(`${environment.API_BASE_URL}/data/preview?filename=${fileData.filename}`)
                 .then(r => { setPreviewData(r.data); setLoading(false); })
                 .catch(() => {
                     setPreviewData({

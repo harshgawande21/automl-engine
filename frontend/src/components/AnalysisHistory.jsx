@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Clock, History, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import environment from '../config/environment';
 
 const AnalysisHistory = () => {
     const [history, setHistory] = useState([]);
@@ -9,7 +10,7 @@ const AnalysisHistory = () => {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:8000/history/');
+            const res = await axios.get(`${environment.API_BASE_URL}/history/`);
             setHistory(res.data.history || []);
         } catch (e) {
             console.error(e);
@@ -19,7 +20,7 @@ const AnalysisHistory = () => {
 
     const clearHistory = async () => {
         try {
-            await axios.delete('http://localhost:8000/history/');
+            await axios.delete(`${environment.API_BASE_URL}/history/`);
             setHistory([]);
         } catch (e) {
             console.error(e);

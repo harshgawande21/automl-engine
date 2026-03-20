@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Upload } from 'lucide-react';
 import { useState } from 'react';
+import environment from '../config/environment';
 
 const FileUpload = ({ onUploadSuccess }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -30,7 +31,7 @@ const FileUpload = ({ onUploadSuccess }) => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post('http://localhost:8000/data/upload', formData, {
+      const response = await axios.post(`${environment.API_BASE_URL}/data/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       onUploadSuccess(response.data);

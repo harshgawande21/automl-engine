@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { CheckCircle, GitCompare, Play, XCircle } from 'lucide-react';
+import environment from '../config/environment';
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -34,7 +35,7 @@ const ModelComparison = ({ filename, columns }) => {
         setError(null);
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost:8000/compare/', {
+            const res = await axios.post(`${environment.API_BASE_URL}/compare/`, {
                 filename,
                 target_column: targetColumn,
                 model_types: selectedModels

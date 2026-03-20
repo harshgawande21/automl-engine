@@ -21,7 +21,7 @@ app = FastAPI(
 # use a regex to accept any localhost port (development convenience)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://localhost(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost(:\d+)?|.*\.vercel\.app|.*\.netlify\.app|.*\.onrender\.com)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AlertCircle, Lightbulb, Star, TrendingUp } from 'lucide-react';
+import environment from '../config/environment';
 import { useEffect, useState } from 'react';
 import Button from './common/Button';
 import Card, { CardHeader, CardTitle } from './common/Card';
@@ -12,7 +13,7 @@ const Recommendations = ({ filename, columns }) => {
     const fetchRecommendations = async (target = '') => {
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost:8000/recommend/', {
+            const res = await axios.post(`${environment.API_BASE_URL}/recommend/`, {
                 filename,
                 target_column: target
             });

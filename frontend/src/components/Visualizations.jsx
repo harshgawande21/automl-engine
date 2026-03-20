@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Activity, BarChart3 } from 'lucide-react';
+import environment from '../config/environment';
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from './common/Button';
@@ -17,7 +18,7 @@ const Visualizations = ({ filename, columns }) => {
     const loadHistogram = async (col = '') => {
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost:8000/visualize/histogram', { filename, column: col });
+            const res = await axios.post(`${environment.API_BASE_URL}/visualize/histogram`, { filename, column: col });
             setHistData(res.data);
         } catch (e) { console.error(e); }
         setLoading(false);
@@ -26,7 +27,7 @@ const Visualizations = ({ filename, columns }) => {
     const loadCorrelation = async () => {
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost:8000/visualize/correlation', { filename });
+            const res = await axios.post(`${environment.API_BASE_URL}/visualize/correlation`, { filename });
             setCorrData(res.data);
         } catch (e) { console.error(e); }
         setLoading(false);
