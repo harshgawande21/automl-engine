@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: ml_engine_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/datasets:/app/datasets
+      - ./backend/saved_models:/app/saved_models
+      - ./backend/logs:/app/logs
+      - ./backend/autoinsight.db:/app/autoinsight.db
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: ml_engine_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
