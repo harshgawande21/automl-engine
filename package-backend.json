@@ -1,0 +1,22 @@
+{
+  "name": "ml-engine-mock-backend",
+  "version": "1.0.0",
+  "description": "Mock backend for AutoInsight ML Engine",
+  "main": "mock-backend.js",
+  "scripts": {
+    "start": "node mock-backend.js",
+    "dev": "nodemon mock-backend.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["ml", "api", "mock", "backend"],
+  "author": "AutoInsight Team",
+  "license": "MIT"
+}
