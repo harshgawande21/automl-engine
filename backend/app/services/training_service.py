@@ -17,7 +17,13 @@ from app.ml_pipeline.training.cross_validation import cross_validate_model
 def train_model(db: Session, filename: str, target_column: str, model_type: str,
                 task_type: str = "classification", test_size: float = DEFAULT_TEST_SIZE,
                 n_clusters: int = 3, hyperparameters: dict = None, user_id: str = None) -> dict:
+    if not filename:
+        raise HTTPException(400, "No dataset filename provided. Please upload a dataset first.")
+    
     df = load_dataframe(filename)
+    if df is None or df.empty:
+        raise HTTPException(400, f"Could not load dataset '{filename}'. Please re-upload the file.")
+    
     df = clean_data(df)
     df = encode_features(df)
 
@@ -27,8 +33,17 @@ def train_model(db: Session, filename: str, target_column: str, model_type: str,
         model_wrapper = get_model_instance(model_type, n_clusters=n_clusters, params=hyperparameters)
 
         if is_clustering:
-            X = df.drop(columns=[target_column], errors="ignore") if target_column else df.select_dtypes(include=["number"])
-            results = model_wrapper.train(X)
+            # For clustering: use all numeric columns, or encode and use all columns
+            if target_column:
+                X = df.drop(columns=[target_column], errors="ignore")
+            else:
+                X = df.copy()
+            # Select only numeric columns for clustering
+            X_numeric = X.select_dtypes(include=["number"])
+            if X_numeric.empty:
+                # If no numeric columns, raise a clear error
+                raise HTTPException(400, f"No numeric columns found for clustering. Your dataset has columns: {list(df.columns)}. Please ensure your dataset has numeric features.")
+            results = model_wrapper.train(X_numeric)
             actual_task = "clustering"
         else:
             if not target_column:
@@ -43,6 +58,12 @@ def train_model(db: Session, filename: str, target_column: str, model_type: str,
     os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
     joblib.dump(model_wrapper.model, os.path.join(SAVED_MODELS_DIR, model_filename))
 
+    # Build feature columns list
+    if is_clustering:
+        feature_cols = X_numeric.columns.tolist()
+    else:
+        feature_cols = df.drop(columns=[target_column], errors='ignore').columns.tolist()
+
     # Persist to DB
     record = crud.create_trained_model(
         db,
@@ -52,7 +73,7 @@ def train_model(db: Session, filename: str, target_column: str, model_type: str,
         filename=model_filename,
         target_column=target_column,
         metrics=results,
-        hyperparameters=hyperparameters,
+        hyperparameters={"feature_columns": feature_cols},
         training_duration=t.elapsed,
         created_by=user_id,
     )

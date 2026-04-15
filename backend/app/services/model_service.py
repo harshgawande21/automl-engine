@@ -12,6 +12,7 @@ def get_all_models(db: Session) -> list:
             "id": m.id, "name": m.name, "model_type": m.model_type,
             "task_type": m.task_type, "metrics": m.metrics, "status": m.status,
             "training_duration": m.training_duration,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in crud.get_trained_models(db)
     ]
@@ -49,4 +50,8 @@ def load_model_object(model_id: str, db: Session):
     model_path = os.path.join(SAVED_MODELS_DIR, m.filename)
     if not os.path.exists(model_path):
         raise HTTPException(404, "Model file not found on disk")
-    return joblib.load(model_path), m
+    bundle = joblib.load(model_path)
+    # Support both old format (raw model) and new bundle format
+    if isinstance(bundle, dict) and "model" in bundle:
+        return bundle["model"], m, bundle.get("encoders", {}), bundle.get("feature_cols", [])
+    return bundle, m, {}, []

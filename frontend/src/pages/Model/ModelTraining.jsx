@@ -1,403 +1,227 @@
-import {
-    AlertCircle,
-    BarChart3,
-    Brain,
-    CheckCircle,
-    Info,
-    Play,
-    Settings,
-    Target,
-    TrendingUp,
-    Zap
-} from 'lucide-react';
+import { Brain, CheckCircle, Play, Upload, Zap, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
-import Badge from '../../components/common/Badge';
-import Button from '../../components/common/Button';
-import Card, { CardHeader, CardTitle } from '../../components/common/Card';
-import InputField from '../../components/forms/InputField';
-import SelectField from '../../components/forms/SelectField';
+import { useNavigate } from 'react-router-dom';
 import { trainModel } from '../../store/modelSlice';
+import Button from '../../components/common/Button';
+import Card from '../../components/common/Card';
+import ModelResultsChart from '../../components/charts/ModelResultsChart';
 
-const algorithms = {
-    classification: [
-        { value: 'random_forest', label: 'Random Forest', description: 'Ensemble method with high accuracy' },
-        { value: 'xgboost', label: 'XGBoost', description: 'Gradient boosting with excellent performance' },
-        { value: 'logistic_regression', label: 'Logistic Regression', description: 'Simple and interpretable' },
-        { value: 'svm', label: 'SVM', description: 'Effective in high-dimensional spaces' },
-        { value: 'knn', label: 'KNN', description: 'Instance-based learning' },
-    ],
-    regression: [
-        { value: 'linear_regression', label: 'Linear Regression', description: 'Classic regression approach' },
-        { value: 'ridge', label: 'Ridge', description: 'Regularized linear regression' },
-        { value: 'lasso', label: 'Lasso', description: 'L1 regularized regression' },
-        { value: 'decision_tree', label: 'Decision Tree', description: 'Non-parametric method' },
-        { value: 'xgboost_reg', label: 'XGBoost Regressor', description: 'Gradient boosting for regression' },
-    ],
-    clustering: [
-        { value: 'kmeans', label: 'K-Means', description: 'Centroid-based clustering' },
-        { value: 'dbscan', label: 'DBSCAN', description: 'Density-based clustering' },
-        { value: 'hierarchical', label: 'Hierarchical', description: 'Tree-based clustering' },
-    ],
-};
+const STEPS = [
+    { id: 1, label: 'Reading your data', duration: 800 },
+    { id: 2, label: 'Cleaning & preparing', duration: 1200 },
+    { id: 3, label: 'Finding patterns', duration: 2000 },
+    { id: 4, label: 'Training the model', duration: 3000 },
+    { id: 5, label: 'Evaluating results', duration: 1000 },
+];
 
 export default function ModelTraining() {
     const dispatch = useDispatch();
-    const { loading, trainingStatus } = useSelector((state) => state.model);
-    const location = useLocation();
     const navigate = useNavigate();
-    
-    // Check if we have auto-train data from DataUpload
-    const datasetAnalysis = location.state?.datasetAnalysis;
-    const autoTrain = location.state?.autoTrain;
-    
-    const [config, setConfig] = useState({
-        taskType: datasetAnalysis?.recommendedApproach === 'supervised' ? 'classification' : 'clustering',
-        algorithm: datasetAnalysis?.recommendedAlgorithm?.toLowerCase().replace(' ', '_') || 'random_forest',
-        targetColumn: datasetAnalysis?.targetColumn || '',
-        testSize: '0.2',
-        autoTrain: false,
-    });
-    
-    const [trainingProgress, setTrainingProgress] = useState(0);
-    const [trainingStarted, setTrainingStarted] = useState(false);
-    const [trainingComplete, setTrainingComplete] = useState(false);
+    const { loading, error, currentModel } = useSelector(s => s.model);
+    const { activeDataset } = useSelector(s => s.data);
 
-    // Auto-populate form if coming from DataUpload
-    useEffect(() => {
-        if (autoTrain && datasetAnalysis) {
-            setConfig(prev => ({
-                ...prev,
-                taskType: datasetAnalysis.recommendedApproach === 'supervised' ? 'classification' : 'clustering',
-                algorithm: datasetAnalysis.recommendedAlgorithm.toLowerCase().replace(' ', '_'),
-                targetColumn: datasetAnalysis.targetColumn || '',
-                autoTrain: true
-            }));
-            
-            // Auto-start training after a short delay
-            setTimeout(() => {
-                handleAutoTrain();
-            }, 1000);
+    const [step, setStep] = useState(0);
+    const [done, setDone] = useState(false);
+    const [trainError, setTrainError] = useState(null);
+    const [result, setResult] = useState(null);
+
+    const filename = activeDataset?.filename;
+
+    const runSteps = async () => {
+        for (let i = 0; i < STEPS.length; i++) {
+            setStep(i + 1);
+            await new Promise(r => setTimeout(r, STEPS[i].duration));
         }
-    }, [autoTrain, datasetAnalysis]);
-
-    const handleTrain = () => {
-        setTrainingStarted(true);
-        setTrainingComplete(false);
-        setTrainingProgress(0);
-        
-        // Include dataset info in the training config
-        const trainingConfig = {
-            ...config,
-            datasetInfo: datasetAnalysis
-        };
-        
-        // Simulate training progress
-        const progressInterval = setInterval(() => {
-            setTrainingProgress(prev => {
-                if (prev >= 95) {
-                    clearInterval(progressInterval);
-                    return 95;
-                }
-                return prev + 5;
-            });
-        }, 200);
-
-        dispatch(trainModel(trainingConfig)).then(() => {
-            clearInterval(progressInterval);
-            setTrainingProgress(100);
-            setTrainingComplete(true);
-            
-            // Navigate to results after training
-            setTimeout(() => {
-                navigate('/prediction/results', {
-                    state: {
-                        modelTrained: true,
-                        algorithm: config.algorithm,
-                        taskType: config.taskType,
-                        datasetInfo: datasetAnalysis
-                    }
-                });
-            }, 2000);
-        });
     };
 
-    const handleAutoTrain = () => {
-        handleTrain();
-    };
+    const handleTrain = async () => {
+        if (!filename) {
+            setTrainError('No dataset found. Please upload a dataset first.');
+            return;
+        }
+        setTrainError(null);
+        setDone(false);
+        setResult(null);
 
-    const getAlgorithmInfo = () => {
-        const taskAlgorithms = algorithms[config.taskType] || [];
-        return taskAlgorithms.find(alg => alg.value === config.algorithm);
+        // Run visual steps in parallel with real training
+        runSteps();
+
+        const action = await dispatch(trainModel({ filename }));
+
+        if (action.type === 'model/train/fulfilled') {
+            setStep(STEPS.length);
+            setDone(true);
+            setResult(action.payload);
+        } else {
+            setStep(0);
+            setTrainError(action.payload || 'Training failed. Please try again.');
+        }
     };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50">
-            {/* Header */}
-            <div className="bg-white border-b border-blue-200 px-6 py-4">
-                <h1 className="text-2xl font-bold text-slate-800">Model Training</h1>
-                <p className="text-slate-600">
-                    {autoTrain ? 'Auto-training recommended model' : 'Configure and train your ML model'}
+            <div className="bg-white border-b border-blue-200 px-6 py-4 shadow-sm">
+                <h1 className="text-2xl font-bold text-slate-800">Train Your AI Model</h1>
+                <p className="text-slate-500 text-sm mt-1">
+                    Just click the button — we handle everything automatically
                 </p>
             </div>
 
-            {/* Main Content */}
-            <div className="p-6">
-                {autoTrain && datasetAnalysis && (
-                    <Card className="mb-6 border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50">
+            <div className="p-6 max-w-3xl mx-auto">
+                {/* Dataset Status */}
+                <div className={`rounded-xl border p-4 mb-6 flex items-center gap-3 ${filename ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                    {filename ? (
+                        <>
+                            <CheckCircle className="text-green-500 flex-shrink-0" size={20} />
+                            <div>
+                                <p className="font-semibold text-green-800 text-sm">Dataset ready: <span className="font-bold">{filename}</span></p>
+                                <p className="text-green-600 text-xs mt-0.5">
+                                    {activeDataset?.rows?.toLocaleString() || '?'} rows × {activeDataset?.columns || '?'} columns
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <AlertCircle className="text-yellow-500 flex-shrink-0" size={20} />
+                            <div className="flex-1">
+                                <p className="font-semibold text-yellow-800 text-sm">No dataset uploaded yet</p>
+                                <p className="text-yellow-600 text-xs mt-0.5">Upload a CSV file first to train a model</p>
+                            </div>
+                            <Button onClick={() => navigate('/data/upload')} icon={Upload} variant="outline" size="sm">
+                                Upload Data
+                            </Button>
+                        </>
+                    )}
+                </div>
+
+                {/* What happens card */}
+                {!loading && !done && (
+                    <Card className="mb-6">
                         <div className="p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Zap className="w-6 h-6 text-blue-600" />
-                                <h2 className="text-lg font-semibold text-slate-800">Auto-Training Mode</h2>
-                                <Badge variant="primary">AI Recommended</Badge>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div className="p-3 bg-white/50 rounded-lg">
-                                    <div className="text-sm text-slate-600">Dataset</div>
-                                    <div className="font-semibold text-slate-800">{datasetAnalysis.rows} rows × {datasetAnalysis.columns} columns</div>
-                                </div>
-                                <div className="p-3 bg-white/50 rounded-lg">
-                                    <div className="text-sm text-slate-600">Approach</div>
-                                    <div className="font-semibold text-slate-800 capitalize">{datasetAnalysis.recommendedApproach} Learning</div>
-                                </div>
-                                <div className="p-3 bg-white/50 rounded-lg">
-                                    <div className="text-sm text-slate-600">Algorithm</div>
-                                    <div className="font-semibold text-slate-800">{datasetAnalysis.recommendedAlgorithm}</div>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-blue-100 rounded-lg">
-                                <p className="text-sm text-blue-800">{datasetAnalysis.explanation}</p>
+                            <h2 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <Zap className="text-blue-500" size={18} />
+                                What will happen automatically?
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {[
+                                    ['🔍', 'Analyze your data', 'Understand what type of data you have'],
+                                    ['🧹', 'Clean the data', 'Fix missing values and errors automatically'],
+                                    ['🎯', 'Find the target', 'Detect what you want to predict'],
+                                    ['🤖', 'Train the model', 'Learn patterns from your data'],
+                                    ['📊', 'Show results', 'Visual charts you can understand'],
+                                    ['💡', 'Explain findings', 'Plain English summary of what was learned'],
+                                ].map(([emoji, title, desc]) => (
+                                    <div key={title} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                                        <span className="text-xl">{emoji}</span>
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-800">{title}</p>
+                                            <p className="text-xs text-slate-500">{desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </Card>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Configuration */}
-                    <div className="lg:col-span-2">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Training Configuration</CardTitle>
-                            </CardHeader>
-                            <div className="p-6 space-y-6">
-                                {/* Task Type */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Task Type
-                                    </label>
-                                    <SelectField
-                                        value={config.taskType}
-                                        onChange={(value) => setConfig(prev => ({ ...prev, taskType: value, algorithm: algorithms[value][0]?.value || '' }))}
-                                        options={[
-                                            { value: 'classification', label: 'Classification' },
-                                            { value: 'regression', label: 'Regression' },
-                                            { value: 'clustering', label: 'Clustering' },
-                                        ]}
-                                        disabled={autoTrain}
-                                    />
-                                </div>
-
-                                {/* Algorithm */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Algorithm
-                                    </label>
-                                    <SelectField
-                                        value={config.algorithm}
-                                        onChange={(value) => setConfig(prev => ({ ...prev, algorithm: value }))}
-                                        options={algorithms[config.taskType] || []}
-                                        disabled={autoTrain}
-                                    />
-                                    {getAlgorithmInfo() && (
-                                        <p className="mt-2 text-sm text-slate-600">
-                                            {getAlgorithmInfo().description}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Target Column (for supervised learning) */}
-                                {(config.taskType === 'classification' || config.taskType === 'regression') && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            Target Column
-                                        </label>
-                                        <InputField
-                                            value={config.targetColumn}
-                                            onChange={(value) => setConfig(prev => ({ ...prev, targetColumn: value }))}
-                                            placeholder="Enter target column name"
-                                            disabled={autoTrain}
-                                        />
+                {/* Training Progress */}
+                {loading && (
+                    <Card className="mb-6">
+                        <div className="p-8">
+                            <div className="flex items-center justify-center mb-6">
+                                <div className="relative">
+                                    <div className="w-20 h-20 rounded-full border-4 border-blue-100 flex items-center justify-center">
+                                        <Brain className="text-blue-400 animate-pulse" size={32} />
                                     </div>
-                                )}
-
-                                {/* Test Size */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Test Size ({parseInt(config.testSize) * 100}%)
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="10"
-                                        max="40"
-                                        value={parseInt(config.testSize) * 100}
-                                        onChange={(e) => setConfig(prev => ({ ...prev, testSize: (e.target.value / 100).toString() }))}
-                                        className="w-full"
-                                        disabled={autoTrain}
-                                    />
-                                </div>
-
-                                {/* Train Button */}
-                                <div className="flex gap-4">
-                                    <Button 
-                                        onClick={handleTrain}
-                                        disabled={loading || trainingStarted}
-                                        loading={loading}
-                                        icon={Play}
-                                        className={autoTrain ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}
-                                    >
-                                        {autoTrain ? 'Start Auto-Training' : 'Train Model'}
-                                    </Button>
-                                    {!autoTrain && (
-                                        <Button 
-                                            variant="outline"
-                                            onClick={() => navigate('/data/upload')}
-                                        >
-                                            Upload Dataset
-                                        </Button>
-                                    )}
+                                    <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
                                 </div>
                             </div>
-                        </Card>
-
-                        {/* Training Progress */}
-                        {trainingStarted && (
-                            <Card className="mt-6">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Brain className="w-5 h-5 text-blue-600" />
-                                        Training Progress
-                                    </CardTitle>
-                                </CardHeader>
-                                <div className="p-6">
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="flex justify-between text-sm mb-2">
-                                                <span className="text-slate-600">Overall Progress</span>
-                                                <span className="text-slate-800 font-semibold">{trainingProgress}%</span>
-                                            </div>
-                                            <div className="w-full bg-blue-100 rounded-full h-3">
-                                                <div 
-                                                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-                                                    style={{ width: `${trainingProgress}%` }}
-                                                ></div>
-                                            </div>
+                            <div className="space-y-3">
+                                {STEPS.map((s, i) => (
+                                    <div key={s.id} className={`flex items-center gap-3 p-3 rounded-lg transition-all ${step > i ? 'bg-green-50' : step === i + 1 ? 'bg-blue-50' : 'bg-slate-50'}`}>
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${step > i ? 'bg-green-500' : step === i + 1 ? 'bg-blue-500 animate-pulse' : 'bg-slate-200'}`}>
+                                            {step > i ? (
+                                                <CheckCircle size={14} className="text-white" />
+                                            ) : (
+                                                <span className="text-xs text-white font-bold">{i + 1}</span>
+                                            )}
                                         </div>
-
-                                        {trainingProgress < 30 && (
-                                            <div className="flex items-center gap-2 text-blue-600">
-                                                <AlertCircle className="w-4 h-4" />
-                                                <span className="text-sm">Preparing data...</span>
-                                            </div>
-                                        )}
-                                        {trainingProgress >= 30 && trainingProgress < 70 && (
-                                            <div className="flex items-center gap-2 text-purple-600">
-                                                <Brain className="w-4 h-4 animate-pulse" />
-                                                <span className="text-sm">Training model...</span>
-                                            </div>
-                                        )}
-                                        {trainingProgress >= 70 && trainingProgress < 100 && (
-                                            <div className="flex items-center gap-2 text-green-600">
-                                                <TrendingUp className="w-4 h-4" />
-                                                <span className="text-sm">Evaluating performance...</span>
-                                            </div>
-                                        )}
-                                        {trainingComplete && (
-                                            <div className="flex items-center gap-2 text-green-600">
-                                                <CheckCircle className="w-4 h-4" />
-                                                <span className="text-sm font-medium">Training completed successfully!</span>
-                                            </div>
-                                        )}
+                                        <span className={`text-sm font-medium ${step > i ? 'text-green-700' : step === i + 1 ? 'text-blue-700' : 'text-slate-400'}`}>
+                                            {s.label}
+                                            {step === i + 1 && '...'}
+                                        </span>
                                     </div>
-                                </div>
-                            </Card>
+                                ))}
+                            </div>
+                        </div>
+                    </Card>
+                )}
+
+                {/* Error */}
+                {trainError && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
+                        <div>
+                            <p className="font-semibold text-red-800 text-sm">Training failed</p>
+                            <p className="text-red-600 text-xs mt-1">{trainError}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Train Button */}
+                {!loading && !done && (
+                    <Button
+                        onClick={handleTrain}
+                        disabled={!filename}
+                        icon={Play}
+                        className="w-full py-4 text-lg"
+                        size="lg"
+                    >
+                        🚀 Train My AI Model
+                    </Button>
+                )}
+
+                {/* Results */}
+                {done && result && (
+                    <>
+                        {/* Auto-detection explanation */}
+                        {result.explanation && (
+                            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                <p className="text-sm text-blue-800">
+                                    <strong>🤖 What I did:</strong> {result.explanation}
+                                </p>
+                            </div>
                         )}
-                    </div>
 
-                    {/* Sidebar */}
-                    <div className="lg:col-span-1">
-                        {/* Model Info */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Model Information</CardTitle>
-                            </CardHeader>
-                            <div className="p-6">
-                                <div className="space-y-4">
-                                    <div className="p-3 bg-blue-50 rounded-lg">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Target className="w-4 h-4 text-blue-600" />
-                                            <span className="text-sm font-medium text-blue-800">Task Type</span>
-                                        </div>
-                                        <div className="text-lg font-semibold text-blue-600 capitalize">
-                                            {config.taskType}
-                                        </div>
-                                    </div>
+                        <ModelResultsChart
+                            results={result}
+                            modelType={result.model_type}
+                            taskType={result.task_type}
+                        />
 
-                                    <div className="p-3 bg-purple-50 rounded-lg">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <BarChart3 className="w-4 h-4 text-purple-600" />
-                                            <span className="text-sm font-medium text-purple-800">Algorithm</span>
-                                        </div>
-                                        <div className="text-lg font-semibold text-purple-600">
-                                            {getAlgorithmInfo()?.label || 'Not selected'}
-                                        </div>
-                                    </div>
-
-                                    {(config.taskType === 'classification' || config.taskType === 'regression') && (
-                                        <div className="p-3 bg-green-50 rounded-lg">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Settings className="w-4 h-4 text-green-600" />
-                                                <span className="text-sm font-medium text-green-800">Test Split</span>
-                                            </div>
-                                            <div className="text-lg font-semibold text-green-600">
-                                                {parseInt(config.testSize) * 100}% Test
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </Card>
-
-                        {/* Tips */}
-                        <Card className="mt-6">
-                            <CardHeader>
-                                <CardTitle>Training Tips</CardTitle>
-                            </CardHeader>
-                            <div className="p-6">
-                                <div className="space-y-3">
-                                    <div className="flex items-start gap-2">
-                                        <Info className="w-4 h-4 text-blue-600 mt-0.5" />
-                                        <div className="text-sm text-slate-600">
-                                            <strong>Random Forest</strong> works well with mixed data types and handles missing values.
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                        <Info className="w-4 h-4 text-purple-600 mt-0.5" />
-                                        <div className="text-sm text-slate-600">
-                                            <strong>XGBoost</strong> provides excellent performance but may require more tuning.
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                        <Info className="w-4 h-4 text-green-600 mt-0.5" />
-                                        <div className="text-sm text-slate-600">
-                                            <strong>20% test split</strong> is good for reliable performance evaluation.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-                </div>
+                        <div className="mt-6 grid grid-cols-2 gap-4">
+                            <Button
+                                onClick={() => navigate('/prediction/single')}
+                                className="w-full"
+                                icon={Zap}
+                            >
+                                Make a Prediction
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setDone(false);
+                                    setResult(null);
+                                    setStep(0);
+                                }}
+                                className="w-full"
+                            >
+                                Train Again
+                            </Button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

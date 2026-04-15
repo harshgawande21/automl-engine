@@ -1,49 +1,66 @@
 import {
-    Activity,
-    AlertCircle,
-    BarChart3,
-    Brain,
-    CheckCircle,
-    Clock,
-    Database,
-    Play,
-    Settings,
-    Target, TrendingUp, Upload,
-    Users,
-    Zap
+    Activity, BarChart3, Brain, CheckCircle, Clock,
+    Database, Play, Settings, Target, TrendingUp, Upload, Zap, AlertCircle
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import Button from '../../components/common/Button';
 import Card, { CardHeader, CardTitle } from '../../components/common/Card';
+import api from '../../config/axiosConfig';
+
+function timeAgo(dateStr) {
+    if (!dateStr) return '—';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+}
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
+    const { user } = useSelector(state => state.auth);
+    const [stats, setStats] = useState({ models: 0, datasets: 0, predictions: 0, avgAccuracy: null });
+    const [models, setModels] = useState([]);
+    const [datasets, setDatasets] = useState([]);
+    const [predictions, setPredictions] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Mock data for dashboard
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [m, d, p] = await Promise.allSettled([
+                    api.get('/models/'),
+                    api.get('/data/list'),
+                    api.get('/predictions/history'),
+                ]);
+                const modelList = m.status === 'fulfilled' ? (m.value.data?.data || []) : [];
+                const datasetList = d.status === 'fulfilled' ? (d.value.data?.data || []) : [];
+                const predList = p.status === 'fulfilled' ? (p.value.data?.data || []) : [];
+
+                const accuracies = modelList.filter(m => m.metrics?.accuracy).map(m => m.metrics.accuracy);
+                const avgAcc = accuracies.length ? (accuracies.reduce((a, b) => a + b, 0) / accuracies.length * 100).toFixed(1) : null;
+
+                setModels(modelList);
+                setDatasets(datasetList);
+                setPredictions(predList);
+                setStats({ models: modelList.length, datasets: datasetList.length, predictions: predList.length, avgAccuracy: avgAcc });
+            } catch (e) {
+                console.error('Dashboard fetch error:', e);
+            }
+            setLoading(false);
+        };
+        fetchData();
+    }, []);
+
     const kpiData = [
-        { label: 'Total Models', value: '12', change: '+2', icon: Brain, color: 'blue', trend: 'up' },
-        { label: 'Datasets', value: '34', change: '+5', icon: Database, color: 'green', trend: 'up' },
-        { label: 'Predictions', value: '1,247', change: '+127', icon: Target, color: 'yellow', trend: 'up' },
-        { label: 'Accuracy', value: '94.6%', change: '+2.1%', icon: TrendingUp, color: 'pink', trend: 'up' },
-        { label: 'Active Users', value: '8', change: '+1', icon: Users, color: 'purple', trend: 'up' },
-        { label: 'API Calls', value: '45.2K', change: '+8.3K', icon: Zap, color: 'orange', trend: 'up' }
-    ];
-
-    const recentActivity = [
-        { id: 1, action: 'Model trained', details: 'Random Forest Classifier', time: '2 hours ago', status: 'success' },
-        { id: 2, action: 'Dataset uploaded', details: 'customer_data_v2.csv', time: '4 hours ago', status: 'success' },
-        { id: 3, action: 'Prediction completed', details: 'Batch of 150 records', time: '6 hours ago', status: 'success' },
-        { id: 4, action: 'Model evaluation', details: 'XGBoost v2.1 - 95.2% accuracy', time: '1 day ago', status: 'success' },
-        { id: 5, action: 'System update', details: 'Security patches applied', time: '2 days ago', status: 'info' }
-    ];
-
-    const modelPerformance = [
-        { name: 'Random Forest', accuracy: 94.6, status: 'active', lastTrained: '2 hours ago' },
-        { name: 'XGBoost', accuracy: 95.2, status: 'active', lastTrained: '1 day ago' },
-        { name: 'Logistic Regression', accuracy: 89.3, status: 'inactive', lastTrained: '3 days ago' },
-        { name: 'SVM', accuracy: 91.8, status: 'training', lastTrained: 'Training...' }
+        { label: 'Models Trained', value: stats.models, icon: Brain, color: 'blue', route: '/model/training' },
+        { label: 'Datasets', value: stats.datasets, icon: Database, color: 'green', route: '/data/upload' },
+        { label: 'Predictions', value: stats.predictions, icon: Target, color: 'yellow', route: '/prediction/single' },
+        { label: 'Avg Accuracy', value: stats.avgAccuracy ? `${stats.avgAccuracy}%` : '—', icon: TrendingUp, color: 'pink', route: '/model/evaluation' },
     ];
 
     const quickActions = [
@@ -51,36 +68,39 @@ export default function Dashboard() {
         { title: 'Train Model', description: 'Create new ML model', icon: Play, route: '/model/training', color: 'green' },
         { title: 'Make Prediction', description: 'Single or batch predictions', icon: Target, route: '/prediction/single', color: 'purple' },
         { title: 'View Analytics', description: 'Detailed insights', icon: BarChart3, route: '/analytics', color: 'orange' },
-        { title: 'System Health', description: 'Monitor performance', icon: Activity, route: '/monitoring', color: 'red' },
-        { title: 'Settings', description: 'Configure system', icon: Settings, route: '/settings', color: 'gray' }
+        { title: 'Monitoring', description: 'Monitor performance', icon: Activity, route: '/monitoring', color: 'red' },
+        { title: 'Work History', description: 'View past work', icon: Clock, route: '/history', color: 'gray' },
     ];
 
-    const systemHealth = {
-        cpu: 45,
-        memory: 62,
-        storage: 78,
-        api: 99.9,
-        uptime: '15 days 7 hours'
+    const colorMap = {
+        blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', hover: 'hover:bg-blue-50' },
+        green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200', hover: 'hover:bg-green-50' },
+        yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-200', hover: 'hover:bg-yellow-50' },
+        pink: { bg: 'bg-pink-100', text: 'text-pink-600', border: 'border-pink-200', hover: 'hover:bg-pink-50' },
+        purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200', hover: 'hover:bg-purple-50' },
+        orange: { bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200', hover: 'hover:bg-orange-50' },
+        red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200', hover: 'hover:bg-red-50' },
+        gray: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200', hover: 'hover:bg-gray-50' },
     };
 
-    const handleQuickAction = (route) => {
-        navigate(route);
-    };
-
-    // Helper function for color classes
-    const getColorClasses = (color) => {
-        const colorMap = {
-            blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', hover: 'hover:bg-blue-50', progress: 'bg-blue-500', progressBg: 'bg-blue-100' },
-            green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200', hover: 'hover:bg-green-50', progress: 'bg-green-500', progressBg: 'bg-green-100' },
-            yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-200', hover: 'hover:bg-yellow-50', progress: 'bg-yellow-500', progressBg: 'bg-yellow-100' },
-            pink: { bg: 'bg-pink-100', text: 'text-pink-600', border: 'border-pink-200', hover: 'hover:bg-pink-50', progress: 'bg-pink-500', progressBg: 'bg-pink-100' },
-            purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200', hover: 'hover:bg-purple-50', progress: 'bg-purple-500', progressBg: 'bg-purple-100' },
-            orange: { bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200', hover: 'hover:bg-orange-50', progress: 'bg-orange-500', progressBg: 'bg-orange-100' },
-            red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200', hover: 'hover:bg-red-50', progress: 'bg-red-500', progressBg: 'bg-red-100' },
-            gray: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200', hover: 'hover:bg-gray-50', progress: 'bg-gray-500', progressBg: 'bg-gray-100' }
-        };
-        return colorMap[color] || colorMap.blue;
-    };
+    // Build recent activity from real data
+    const recentActivity = [
+        ...models.slice(0, 3).map(m => ({
+            id: m.id, action: 'Model trained',
+            details: `${m.model_type?.replace(/_/g, ' ')} ${m.metrics?.accuracy ? `— ${(m.metrics.accuracy * 100).toFixed(1)}% accuracy` : ''}`,
+            time: timeAgo(m.created_at), status: 'success'
+        })),
+        ...datasets.slice(0, 2).map(d => ({
+            id: d.id, action: 'Dataset uploaded',
+            details: `${d.filename} — ${d.rows?.toLocaleString() || '?'} rows`,
+            time: timeAgo(d.created_at), status: 'success'
+        })),
+        ...predictions.slice(0, 2).map(p => ({
+            id: p.id, action: 'Prediction made',
+            details: `${p.type || 'single'} prediction${p.confidence ? ` — ${(p.confidence * 100).toFixed(0)}% confidence` : ''}`,
+            time: timeAgo(p.created_at), status: 'success'
+        })),
+    ].sort((a, b) => 0).slice(0, 6);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50">
@@ -88,47 +108,35 @@ export default function Dashboard() {
             <div className="bg-white border-b border-blue-200 px-6 py-4 shadow-sm">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-800">ML Engine Dashboard</h1>
-                        <p className="text-slate-600 mt-1">Complete overview of your machine learning platform</p>
+                        <h1 className="text-3xl font-bold text-slate-800">
+                            Welcome back{user?.name ? `, ${user.name}` : ''}! 👋
+                        </h1>
+                        <p className="text-slate-600 mt-1">Here's what's happening with your ML projects</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <select 
-                            value={selectedTimeRange}
-                            onChange={(e) => setSelectedTimeRange(e.target.value)}
-                            className="px-4 py-2 border border-blue-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
-                        >
-                            <option value="24h">Last 24 Hours</option>
-                            <option value="7d">Last 7 Days</option>
-                            <option value="30d">Last 30 Days</option>
-                        </select>
-                        <Button variant="primary" onClick={() => navigate('/settings')}>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Settings
-                        </Button>
-                    </div>
+                    <Button variant="primary" onClick={() => navigate('/data/upload')}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        New Project
+                    </Button>
                 </div>
             </div>
 
-            {/* Main Content */}
             <div className="p-6">
                 {/* KPI Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-                    {kpiData.map((kpi, index) => {
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {kpiData.map((kpi) => {
                         const Icon = kpi.icon;
-                        const colors = getColorClasses(kpi.color);
+                        const c = colorMap[kpi.color];
                         return (
-                            <Card key={index} className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer">
+                            <Card key={kpi.label} className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer" onClick={() => navigate(kpi.route)}>
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm text-slate-600 font-medium">{kpi.label}</p>
-                                        <p className="text-2xl font-bold text-slate-800">{kpi.value}</p>
-                                        <p className="text-xs text-green-600 flex items-center mt-1 font-semibold">
-                                            <TrendingUp className="w-3 h-3 mr-1" />
-                                            {kpi.change}
+                                        <p className="text-3xl font-bold text-slate-800 mt-1">
+                                            {loading ? <span className="text-slate-300 text-xl">...</span> : kpi.value}
                                         </p>
                                     </div>
-                                    <div className={`p-3 ${colors.bg} rounded-lg`}>
-                                        <Icon className={`w-6 h-6 ${colors.text}`} />
+                                    <div className={`p-3 ${c.bg} rounded-lg`}>
+                                        <Icon className={`w-6 h-6 ${c.text}`} />
                                     </div>
                                 </div>
                             </Card>
@@ -139,21 +147,16 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     {/* Quick Actions */}
                     <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle>Quick Actions</CardTitle>
-                        </CardHeader>
+                        <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {quickActions.map((action, index) => {
+                            {quickActions.map((action) => {
                                 const Icon = action.icon;
-                                const colors = getColorClasses(action.color);
+                                const c = colorMap[action.color];
                                 return (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleQuickAction(action.route)}
-                                        className={`p-4 bg-white border ${colors.border} rounded-lg hover:border-blue-400 hover:shadow-md transition-all duration-300 text-left group ${colors.hover}`}
-                                    >
-                                        <div className={`p-2 ${colors.bg} rounded-lg w-fit mb-3 group-hover:scale-110 transition-transform duration-300`}>
-                                            <Icon className={`w-5 h-5 ${colors.text}`} />
+                                    <button key={action.route} onClick={() => navigate(action.route)}
+                                        className={`p-4 bg-white border ${c.border} rounded-lg hover:border-blue-400 hover:shadow-md transition-all duration-300 text-left group ${c.hover}`}>
+                                        <div className={`p-2 ${c.bg} rounded-lg w-fit mb-3 group-hover:scale-110 transition-transform`}>
+                                            <Icon className={`w-5 h-5 ${c.text}`} />
                                         </div>
                                         <h3 className="font-semibold text-slate-800 text-sm">{action.title}</h3>
                                         <p className="text-xs text-slate-600 mt-1">{action.description}</p>
@@ -163,155 +166,107 @@ export default function Dashboard() {
                         </div>
                     </Card>
 
-                    {/* System Health */}
+                    {/* Recent Models */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>System Health</CardTitle>
+                            <CardTitle>Recent Models</CardTitle>
+                            <button onClick={() => navigate('/history')} className="text-xs text-blue-500 hover:underline">View all</button>
                         </CardHeader>
-                        <div className="space-y-4">
-                            <div>
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-slate-600 font-medium">CPU Usage</span>
-                                    <span className="text-slate-800 font-semibold">{systemHealth.cpu}%</span>
-                                </div>
-                                <div className="w-full bg-blue-100 rounded-full h-2">
-                                    <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${systemHealth.cpu}%` }}></div>
-                                </div>
+                        {loading ? (
+                            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-lg animate-pulse" />)}</div>
+                        ) : models.length === 0 ? (
+                            <div className="text-center py-8">
+                                <Brain size={32} className="mx-auto text-slate-300 mb-2" />
+                                <p className="text-sm text-slate-500">No models yet</p>
+                                <button onClick={() => navigate('/model/training')} className="mt-2 text-xs text-blue-500 hover:underline">Train your first model</button>
                             </div>
-                            <div>
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-slate-600 font-medium">Memory</span>
-                                    <span className="text-slate-800 font-semibold">{systemHealth.memory}%</span>
-                                </div>
-                                <div className="w-full bg-green-100 rounded-full h-2">
-                                    <div className="bg-green-500 h-2 rounded-full transition-all duration-500" style={{ width: `${systemHealth.memory}%` }}></div>
-                                </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {models.slice(0, 4).map(m => {
+                                    const acc = m.metrics?.accuracy ? `${(m.metrics.accuracy * 100).toFixed(1)}%` : m.metrics?.r2_score ? `R²: ${m.metrics.r2_score.toFixed(2)}` : '—';
+                                    return (
+                                        <div key={m.id} className="flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" onClick={() => navigate('/history')}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-blue-100 rounded-lg"><Brain className="w-4 h-4 text-blue-600" /></div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-800">{m.model_type?.replace(/_/g, ' ')}</p>
+                                                    <p className="text-xs text-slate-500">{timeAgo(m.created_at)}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-sm font-semibold text-green-600">{acc}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                            <div>
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-slate-600 font-medium">Storage</span>
-                                    <span className="text-slate-800 font-semibold">{systemHealth.storage}%</span>
-                                </div>
-                                <div className="w-full bg-yellow-100 rounded-full h-2">
-                                    <div className="bg-yellow-500 h-2 rounded-full transition-all duration-500" style={{ width: `${systemHealth.storage}%` }}></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-slate-600 font-medium">API Uptime</span>
-                                    <span className="text-slate-800 font-semibold">{systemHealth.api}%</span>
-                                </div>
-                                <div className="w-full bg-purple-100 rounded-full h-2">
-                                    <div className="bg-purple-500 h-2 rounded-full transition-all duration-500" style={{ width: `${systemHealth.api}%` }}></div>
-                                </div>
-                            </div>
-                            <div className="pt-2 border-t border-blue-100">
-                                <div className="flex items-center text-sm text-slate-600">
-                                    <Clock className="w-4 h-4 mr-2" />
-                                    Uptime: {systemHealth.uptime}
-                                </div>
-                            </div>
-                        </div>
+                        )}
                     </Card>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Recent Activity */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Recent Activity</CardTitle>
+                            <button onClick={() => navigate('/history')} className="text-xs text-blue-500 hover:underline">View all</button>
                         </CardHeader>
-                        <div className="space-y-3">
-                            {recentActivity.map((activity) => (
-                                <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-blue-50 rounded-lg transition-colors duration-200 cursor-pointer">
-                                    <div className={`p-2 rounded-full ${
-                                        activity.status === 'success' ? 'bg-green-100' : 'bg-blue-100'
-                                    }`}>
-                                        {activity.status === 'success' ? (
+                        {loading ? (
+                            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-lg animate-pulse" />)}</div>
+                        ) : recentActivity.length === 0 ? (
+                            <div className="text-center py-8">
+                                <Clock size={32} className="mx-auto text-slate-300 mb-2" />
+                                <p className="text-sm text-slate-500">No activity yet</p>
+                                <button onClick={() => navigate('/data/upload')} className="mt-2 text-xs text-blue-500 hover:underline">Upload a dataset to get started</button>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {recentActivity.map((a, i) => (
+                                    <div key={i} className="flex items-start gap-3 p-3 hover:bg-blue-50 rounded-lg transition-colors">
+                                        <div className="p-2 rounded-full bg-green-100 flex-shrink-0">
                                             <CheckCircle className="w-4 h-4 text-green-600" />
-                                        ) : (
-                                            <AlertCircle className="w-4 h-4 text-blue-600" />
-                                        )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-slate-800">{a.action}</p>
+                                            <p className="text-xs text-slate-600 truncate">{a.details}</p>
+                                        </div>
+                                        <span className="text-xs text-slate-400 flex-shrink-0">{a.time}</span>
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-800">{activity.action}</p>
-                                        <p className="text-xs text-slate-600">{activity.details}</p>
-                                        <p className="text-xs text-slate-500 mt-1">{activity.time}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </Card>
 
-                    {/* Model Performance */}
+                    {/* Recent Datasets */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Model Performance</CardTitle>
+                            <CardTitle>Recent Datasets</CardTitle>
+                            <button onClick={() => navigate('/history')} className="text-xs text-blue-500 hover:underline">View all</button>
                         </CardHeader>
-                        <div className="space-y-3">
-                            {modelPerformance.map((model, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors duration-200 cursor-pointer">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Brain className="w-4 h-4 text-blue-600" />
+                        {loading ? (
+                            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-lg animate-pulse" />)}</div>
+                        ) : datasets.length === 0 ? (
+                            <div className="text-center py-8">
+                                <Database size={32} className="mx-auto text-slate-300 mb-2" />
+                                <p className="text-sm text-slate-500">No datasets yet</p>
+                                <button onClick={() => navigate('/data/upload')} className="mt-2 text-xs text-blue-500 hover:underline">Upload your first dataset</button>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {datasets.slice(0, 5).map(d => (
+                                    <div key={d.id} className="flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" onClick={() => navigate('/data/upload')}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-green-100 rounded-lg"><Database className="w-4 h-4 text-green-600" /></div>
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-800 truncate max-w-[160px]">{d.filename}</p>
+                                                <p className="text-xs text-slate-500">{d.rows?.toLocaleString() || '?'} rows • {d.size_mb} MB</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-800">{model.name}</p>
-                                            <p className="text-xs text-slate-600">{model.lastTrained}</p>
-                                        </div>
+                                        <span className="text-xs text-slate-400">{timeAgo(d.created_at)}</span>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-semibold text-slate-800">{model.accuracy}%</p>
-                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                            model.status === 'active' ? 'bg-green-100 text-green-700' :
-                                            model.status === 'training' ? 'bg-yellow-100 text-yellow-700' :
-                                            'bg-gray-100 text-gray-700'
-                                        }`}>
-                                            {model.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </Card>
                 </div>
-
-                {/* Features Overview */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Platform Features</CardTitle>
-                    </CardHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="text-center p-4 hover:bg-blue-50 rounded-lg transition-colors duration-200 cursor-pointer">
-                            <div className="p-4 bg-blue-100 rounded-lg w-fit mx-auto mb-3">
-                                <Database className="w-8 h-8 text-blue-600" />
-                            </div>
-                            <h3 className="font-semibold text-slate-800 mb-2">Data Management</h3>
-                            <p className="text-sm text-slate-600">Upload, process, and manage datasets with ease</p>
-                        </div>
-                        <div className="text-center p-4 hover:bg-green-50 rounded-lg transition-colors duration-200 cursor-pointer">
-                            <div className="p-4 bg-green-100 rounded-lg w-fit mx-auto mb-3">
-                                <Brain className="w-8 h-8 text-green-600" />
-                            </div>
-                            <h3 className="font-semibold text-slate-800 mb-2">Model Training</h3>
-                            <p className="text-sm text-slate-600">Train various ML models with hyperparameter tuning</p>
-                        </div>
-                        <div className="text-center p-4 hover:bg-purple-50 rounded-lg transition-colors duration-200 cursor-pointer">
-                            <div className="p-4 bg-purple-100 rounded-lg w-fit mx-auto mb-3">
-                                <Target className="w-8 h-8 text-purple-600" />
-                            </div>
-                            <h3 className="font-semibold text-slate-800 mb-2">Predictions</h3>
-                            <p className="text-sm text-slate-600">Single and batch predictions with confidence scores</p>
-                        </div>
-                        <div className="text-center p-4 hover:bg-orange-50 rounded-lg transition-colors duration-200 cursor-pointer">
-                            <div className="p-4 bg-orange-100 rounded-lg w-fit mx-auto mb-3">
-                                <BarChart3 className="w-8 h-8 text-orange-600" />
-                            </div>
-                            <h3 className="font-semibold text-slate-800 mb-2">Analytics</h3>
-                            <p className="text-sm text-slate-600">Comprehensive insights and visualizations</p>
-                        </div>
-                    </div>
-                </Card>
             </div>
         </div>
     );

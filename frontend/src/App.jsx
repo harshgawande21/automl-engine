@@ -1,6 +1,7 @@
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from './components/common/Toast';
+import MLChatbot from './components/chatbot/MLChatbot';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import AppRoutes from './routes/AppRoutes';
@@ -21,6 +22,7 @@ export default function App() {
                     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                         <AppRoutes />
                         <ToastWrapper />
+                        <MLChatbot />
                     </BrowserRouter>
                 </AuthProvider>
             </ThemeProvider>

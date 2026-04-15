@@ -6,6 +6,20 @@ def clean_data(df: pd.DataFrame, strategy: str = "mean", outlier_strategy: str =
     """Clean data: drop duplicates, handle missing values, and optionally remove outliers."""
     df = df.drop_duplicates()
 
+    # Auto-drop index-like columns (row numbers that add no predictive value)
+    # Only drop if: column name suggests it's an index AND values are exactly 0..n-1 or 1..n
+    index_like = []
+    for col in df.columns:
+        if col.lower() in ('index', 'unnamed: 0', 'unnamed:0'):
+            vals = df[col].dropna()
+            if len(vals) == len(df) and vals.is_monotonic_increasing:
+                expected_0 = list(range(len(df)))
+                expected_1 = list(range(1, len(df) + 1))
+                if list(vals.astype(int)) in (expected_0, expected_1):
+                    index_like.append(col)
+    if index_like:
+        df = df.drop(columns=index_like)
+
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     categorical_cols = df.select_dtypes(exclude=[np.number]).columns
 

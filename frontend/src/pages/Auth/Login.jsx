@@ -1,60 +1,35 @@
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser, clearError } from '../../store/authSlice';
 import Button from '../../components/common/Button';
 import InputField from '../../components/forms/InputField';
-import { useAuth } from '../../hooks/useAuth';
 
 export default function Login() {
     const navigate = useNavigate();
-    const location = useLocation();
-    const { login, loading, error, clearError } = useAuth();
+    const dispatch = useDispatch();
+    const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
     const [showPassword, setShowPassword] = useState(false);
     const [form, setForm] = useState({ email: '', password: '' });
-    const [loginSuccess, setLoginSuccess] = useState(false);
 
-    // Get redirect path from location state or default to dashboard
-    const from = location.state?.from?.pathname || '/dashboard';
+    // If already authenticated, go straight to dashboard
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     const handleChange = (e) => {
-        if (error) clearError();
+        dispatch(clearError());
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoginSuccess(false);
-        
-        console.log('Login attempt with:', form);
-        
-        try {
-            const result = await login(form);
-            console.log('Login successful:', result);
-            setLoginSuccess(true);
-            
-            // Wait a moment for the success message to show
-            setTimeout(() => {
-                // Navigate to dashboard or intended page
-                console.log('Navigating to:', from);
-                navigate(from, { replace: true });
-            }, 1000);
-            
-        } catch (err) {
-            console.error('Login failed:', err);
-            setLoginSuccess(false);
-        }
+        dispatch(loginUser(form));
     };
-
-
-
-    // Show registration success message if coming from register
-    useEffect(() => {
-        if (location.state?.message) {
-            setLoginSuccess(true);
-            setTimeout(() => setLoginSuccess(false), 3000);
-        }
-    }, [location.state]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50 flex items-center justify-center p-4">
@@ -64,25 +39,14 @@ export default function Login() {
                 animate={{ opacity: 1, y: 0 }}
                 className="relative w-full max-w-md"
             >
-                {/* Logo */}
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-blue-400 to-pink-400 flex items-center justify-center mb-4 shadow-lg shadow-blue-400/25">
                         <span className="text-white font-bold text-xl">AI</span>
                     </div>
                     <h1 className="text-3xl font-bold text-slate-800">Welcome back</h1>
                     <p className="text-slate-600 mt-2">Sign in to your AutoInsight account</p>
-                    
-                    {/* Success Message */}
-                    {loginSuccess && (
-                        <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
-                            ✓ {location.state?.message || 'Login successful! Redirecting...'}
-                        </div>
-                    )}
-                    
-
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="bg-white/80 border border-blue-200 rounded-2xl p-8 backdrop-blur-sm shadow-lg space-y-6">
                     {error && (
                         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -142,8 +106,6 @@ export default function Login() {
                         </Link>
                     </p>
                 </form>
-
-
             </motion.div>
         </div>
     );

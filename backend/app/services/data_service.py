@@ -62,7 +62,11 @@ def preview_dataset(filename: str) -> dict:
 
 def get_all_datasets(db: Session) -> list:
     return [
-        {"id": d.id, "filename": d.filename, "size_mb": d.size_mb, "rows": d.rows, "columns": d.columns, "status": d.status}
+        {
+            "id": d.id, "filename": d.filename, "size_mb": d.size_mb,
+            "rows": d.rows, "columns": d.columns, "status": d.status,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
         for d in crud.get_datasets(db)
     ]
 

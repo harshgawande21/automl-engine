@@ -1,5 +1,6 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import APP_NAME, APP_VERSION, CORS_ORIGINS, DEBUG
 from app.core.logging import logger
@@ -21,7 +22,7 @@ app = FastAPI(
 # use a regex to accept any localhost port (development convenience)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost(:\d+)?|.*\.vercel\.app|.*\.netlify\.app|.*\.onrender\.com)$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https?://.*\.(vercel\.app|netlify\.app|onrender\.com)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,6 +34,16 @@ async def startup_event():
     logger.info("Starting up MI Engine...")
     init_db()
     logger.info("Database initialized.")
+
+# Ensure CORS headers are present even on 500 errors
+@app.middleware("http")
+async def add_cors_on_error(request: Request, call_next):
+    response = await call_next(request)
+    origin = request.headers.get("origin", "")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # Routes
 app.include_router(auth_routes.router)

@@ -88,6 +88,7 @@ export default function Navbar() {
         {
             category: 'Account',
             items: [
+                { name: 'Work History', path: '/history', icon: Settings, description: 'All past work' },
                 { name: 'Settings', path: '/settings', icon: Settings, description: 'User settings' },
             ]
         }

@@ -22,8 +22,9 @@ import NotFound from '../pages/NotFound';
 import PredictBatch from '../pages/Prediction/PredictBatch';
 import PredictSingle from '../pages/Prediction/PredictSingle';
 import PredictionResults from '../pages/Prediction/PredictionResults';
-import Settings from '../pages/Settings/Settings';
 import AnalyticsDashboard from '../pages/Visualization/AnalyticsDashboard';
+import Settings from '../pages/Settings/Settings';
+import WorkHistory from '../pages/History/WorkHistory';
 
 // Layout component that includes Navbar
 function LayoutWithNavbar({ children }) {
@@ -142,6 +143,11 @@ export default function AppRoutes() {
                 <Route path="/settings" element={
                     <LayoutWithNavbar>
                         <Settings />
+                    </LayoutWithNavbar>
+                } />
+                <Route path="/history" element={
+                    <LayoutWithNavbar>
+                        <WorkHistory />
                     </LayoutWithNavbar>
                 } />
             </Route>

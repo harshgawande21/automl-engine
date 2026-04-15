@@ -42,24 +42,15 @@ export default function Register() {
             return;
         }
 
-        try {
-            await register({ name: form.name, email: form.email, password: form.password });
-            console.log('Registration successful for:', form.email);
+        const result = await register({ name: form.name, email: form.email, password: form.password });
+
+        if (result?.type === 'auth/register/fulfilled') {
             setRegistrationSuccess(true);
-            
-            // Show success message briefly before redirecting
             setTimeout(() => {
-                navigate('/login', { 
-                    state: { 
-                        message: 'Registration successful! Please login with your new account.',
-                        email: form.email 
-                    } 
+                navigate('/login', {
+                    state: { message: 'Registration successful! Please login with your new account.' }
                 });
             }, 2000);
-            
-        } catch (err) {
-            console.error('Registration failed:', err);
-            setRegistrationSuccess(false);
         }
     };
 
@@ -151,16 +142,6 @@ export default function Register() {
                 </form>
 
                 {/* Registration Example */}
-                <div className="mt-6 p-4 rounded-lg bg-green-50 border border-green-200">
-                    <p className="text-xs text-green-800">
-                        <strong>Example Registration Flow:</strong><br />
-                        1. Fill in all fields<br />
-                        2. Password must be 6+ characters<br />
-                        3. Click "Create Account"<br />
-                        4. Account is created securely<br />
-                        5. Redirect to login page
-                    </p>
-                </div>
             </motion.div>
         </div>
     );

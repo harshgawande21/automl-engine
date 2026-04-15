@@ -33,6 +33,7 @@ const dataSlice = createSlice({
     initialState: {
         datasets: [],
         currentDataset: null,
+        activeDataset: null,  // persists across pages for the session
         preview: null,
         loading: false,
         uploadProgress: 0,
@@ -41,6 +42,10 @@ const dataSlice = createSlice({
     reducers: {
         setCurrentDataset: (state, action) => {
             state.currentDataset = action.payload;
+        },
+        setActiveDataset: (state, action) => {
+            // Persists the active dataset for the entire session
+            state.activeDataset = action.payload;
         },
         setUploadProgress: (state, action) => {
             state.uploadProgress = action.payload;
@@ -59,6 +64,7 @@ const dataSlice = createSlice({
                 state.loading = false;
                 state.datasets.push(action.payload);
                 state.currentDataset = action.payload;
+                state.activeDataset = action.payload; // auto-set as active
             })
             .addCase(uploadDataset.rejected, (state, action) => {
                 state.loading = false;
@@ -73,5 +79,5 @@ const dataSlice = createSlice({
     },
 });
 
-export const { setCurrentDataset, setUploadProgress, clearDataError } = dataSlice.actions;
+export const { setCurrentDataset, setActiveDataset, setUploadProgress, clearDataError } = dataSlice.actions;
 export default dataSlice.reducer;
