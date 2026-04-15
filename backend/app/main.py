@@ -22,7 +22,14 @@ app = FastAPI(
 # use a regex to accept any localhost port (development convenience)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https?://.*\.(vercel\.app|netlify\.app|onrender\.com)$",
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "https://automl-engine.vercel.app",
+        "https://automl-engine-1pjqt0txl-harshs-projects-c504ae82.vercel.app",
+    ],
+    allow_origin_regex=r"^https?://.*\.(vercel\.app|netlify\.app|onrender\.com)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,8 +39,12 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up MI Engine...")
-    init_db()
-    logger.info("Database initialized.")
+    try:
+        init_db()
+        logger.info("Database initialized.")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}. Server will still start.")
+
 
 # Ensure CORS headers are present even on 500 errors
 @app.middleware("http")
