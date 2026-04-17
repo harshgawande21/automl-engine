@@ -337,18 +337,7 @@ For support and questions:
 - Check the [documentation](./docs/)
 - Review the [API docs](http://localhost:8000/docs)
 
-## 🗺️ Roadmap
-
-### Upcoming Features
-- [ ] Dark theme support
-- [ ] Advanced hyperparameter tuning
-- [ ] Model versioning
-- [ ] Team collaboration features
-- [ ] Advanced monitoring alerts
-- [ ] AutoML capabilities
-- [ ] Export models to various formats
-- [ ] Integration with popular ML platforms
 
 ---
 
-**Built with ❤️ using FastAPI, React, and modern ML technologies** 
+
