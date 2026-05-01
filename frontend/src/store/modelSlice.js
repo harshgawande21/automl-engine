@@ -6,6 +6,9 @@ export const trainModel = createAsyncThunk('model/train', async (config, { rejec
         // Use smart-train endpoint — auto-detects task type, target, algorithm
         const params = new URLSearchParams({ filename: config.filename });
         if (config.targetColumn) params.append('target_column', config.targetColumn);
+        if (config.features && config.features.length > 0) {
+            config.features.forEach(f => params.append('features', f));
+        }
         const response = await api.post(`/models/smart-train?${params.toString()}`);
         return response.data?.data || response.data;
     } catch (error) {

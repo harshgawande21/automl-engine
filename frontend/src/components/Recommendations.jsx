@@ -42,7 +42,7 @@ const Recommendations = ({ filename, columns }) => {
                 </CardHeader>
                 <div className="flex gap-3 items-end">
                     <div className="flex-1 max-w-xs">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Target Column (optional)</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">What do you want to predict? {columns?.length > 0 ? `(e.g., ${columns.slice(-2).join(', ')})` : ''} (optional)</label>
                         <select 
                             value={targetColumn} 
                             onChange={(e) => setTargetColumn(e.target.value)}

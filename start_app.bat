@@ -12,11 +12,11 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo [2/4] Starting Backend Server...
-start "ML Engine Backend" cmd /k "cd /d %~dp0backend && python -m uvicorn app.main:app --reload --port 8000"
+echo [2/4] Starting Backend Server in background...
+start /b cmd /c "cd /d %~dp0backend && python -m uvicorn app.main:app --reload --port 8000"
 
 echo [3/4] Installing Frontend Dependencies...
-cd ../frontend
+cd frontend
 call npm install
 if %errorlevel% neq 0 (
     echo [ERROR] Frontend installation failed.
@@ -25,12 +25,12 @@ if %errorlevel% neq 0 (
 )
 
 echo [4/4] Starting Frontend Server...
-start "ML Engine Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
-
 echo ==========================================
 echo      Application Started Successfully!
 echo ==========================================
-echo Backend running at: http://localhost:8000
+echo Backend running at: http://localhost:8000 (in background)
 echo Frontend running at: http://localhost:5173
 echo.
-pause
+echo Press Ctrl+C to stop the frontend server.
+npm run dev
+

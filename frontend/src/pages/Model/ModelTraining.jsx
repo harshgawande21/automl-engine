@@ -25,8 +25,10 @@ export default function ModelTraining() {
     const [done, setDone] = useState(false);
     const [trainError, setTrainError] = useState(null);
     const [result, setResult] = useState(null);
+    const [selectedFeatures, setSelectedFeatures] = useState([]);
 
     const filename = activeDataset?.filename;
+    const columns = activeDataset?.columns_list || Object.keys(activeDataset?.preview?.[0] || {});
 
     const runSteps = async () => {
         for (let i = 0; i < STEPS.length; i++) {
@@ -47,7 +49,7 @@ export default function ModelTraining() {
         // Run visual steps in parallel with real training
         runSteps();
 
-        const action = await dispatch(trainModel({ filename }));
+        const action = await dispatch(trainModel({ filename, features: selectedFeatures }));
 
         if (action.type === 'model/train/fulfilled') {
             setStep(STEPS.length);
@@ -167,6 +169,45 @@ export default function ModelTraining() {
                             <p className="text-red-600 text-xs mt-1">{trainError}</p>
                         </div>
                     </div>
+                )}
+
+                {/* Feature Selection */}
+                {!loading && !done && columns.length > 0 && (
+                    <Card className="mb-6">
+                        <div className="p-6">
+                            <h2 className="font-bold text-slate-800 mb-2">
+                                What information should the model use?
+                            </h2>
+                            <p className="text-sm text-slate-500 mb-4">
+                                By default, the AI will look at all available data. You can optionally select specific columns if you only want the model to learn from those.
+                            </p>
+                            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200">
+                                {columns.map((col) => {
+                                    const isSelected = selectedFeatures.includes(col);
+                                    return (
+                                        <button
+                                            key={col}
+                                            onClick={() => {
+                                                if (isSelected) {
+                                                    setSelectedFeatures(selectedFeatures.filter(f => f !== col));
+                                                } else {
+                                                    setSelectedFeatures([...selectedFeatures, col]);
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                                                isSelected
+                                                    ? 'bg-blue-500 text-white border-blue-500'
+                                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                                            }`}
+                                        >
+                                            {isSelected && <span className="mr-1">✓</span>}
+                                            {col}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </Card>
                 )}
 
                 {/* Train Button */}

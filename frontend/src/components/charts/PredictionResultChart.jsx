@@ -57,6 +57,46 @@ function ValueScale({ uniqueValues, predictedValue }) {
     );
 }
 
+// Shows matching rows from the original dataset
+function SimilarRecordsTable({ records, predictedValue }) {
+    if (!records || records.length === 0) return null;
+    const columns = Object.keys(records[0] || {}).slice(0, 5); // Show max 5 columns to keep it clean
+
+    return (
+        <div className="bg-blue-50/50 rounded-2xl border border-blue-200 p-5">
+            <p className="font-bold text-blue-900 mb-1">👀 What does "{predictedValue}" actually look like?</p>
+            <p className="text-xs text-blue-700 mb-4">
+                We found these real examples from your dataset that match this prediction.
+            </p>
+            <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-sm">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            {columns.map(col => (
+                                <th key={col} className="px-4 py-2 font-semibold text-slate-600 text-xs uppercase tracking-wider">{col.replace(/_/g, ' ')}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {records.map((row, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                                {columns.map(col => (
+                                    <td key={col} className="px-4 py-2.5 text-slate-700">
+                                        {String(row[col] ?? '—')}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <p className="text-xs text-slate-500 mt-3 text-center">
+                (Showing {records.length} matching rows from your dataset)
+            </p>
+        </div>
+    );
+}
+
 // Probability donut/bar chart
 function ProbabilityChart({ probabilities, uniqueValues }) {
     if (!probabilities || probabilities.length < 2) return null;
@@ -102,6 +142,7 @@ export default function PredictionResultChart({ result, modelType, taskType, cur
     const originalLabel = raw?.original_label;
     const targetColumn = (raw?.target_column || currentModel?.target_column || 'result').replace(/_/g, ' ');
     const targetUniqueValues = raw?.target_unique_values || [];
+    const similarRecords = raw?.similar_records || [];
     const confidence = raw?.confidence;
     const probabilities = raw?.probabilities;
     const latency = raw?.latency_ms;
@@ -130,11 +171,46 @@ export default function PredictionResultChart({ result, modelType, taskType, cur
         const col = targetColumn;
         const total = targetUniqueValues.length;
         const context = total > 0 ? ` (one of ${total} possible values in your data)` : '';
+        const colLower = col.toLowerCase();
+        
+        let analogy = `Like an expert making an educated guess — it's the best estimate based on similar records, but not guaranteed.`;
+        let regAnalogy = `Think of it like an educated estimate — based on similar records, this is the most likely number.`;
+        
+        // 1. Real Estate & Housing
+        if (/house|price|location|school|area|room|property|estate|neighborhood|bedroom|bathroom|rent/i.test(colLower)) {
+            analogy = `Like a real estate agent evaluating a property — it's the best estimate based on similar places in your dataset, but not guaranteed.`;
+            regAnalogy = `Think of it like a property valuation — based on similar homes or locations, this is the most likely value.`;
+        } 
+        // 2. Sales & Finance
+        else if (/sale|revenue|profit|purchase|buy|cost|spend|budget|stock/i.test(colLower)) {
+            analogy = `Like a financial analyst projecting trends — it's a highly educated estimate based on past market data, but not guaranteed.`;
+            regAnalogy = `Think of it like a financial appraisal — based on historical financial records, this is the most likely amount.`;
+        }
+        // 3. Customer & Churn
+        else if (/customer|churn|retention|user|client|click|conversion|subscribe/i.test(colLower)) {
+            analogy = `Like a marketing expert predicting user behavior — it's the best guess based on how similar people acted in the past, but not guaranteed.`;
+            regAnalogy = `Think of it like predicting customer habits — based on past users, this is the expected number.`;
+        }
+        // 4. HR & Salary
+        else if (/salary|income|wage|employee|hire|quit|job|role|performance/i.test(colLower)) {
+            analogy = `Like an HR specialist estimating compensation — it's based on industry standards and similar profiles, but not guaranteed.`;
+            regAnalogy = `Think of it like an industry benchmark — based on similar employees or roles, this is the expected value.`;
+        }
+        // 5. Medical
+        else if (/health|disease|sick|patient|blood|heart|doctor|medical|cancer/i.test(colLower)) {
+            analogy = `Like a doctor looking at historical medical records — it's the most likely outcome based on similar cases, but not a definitive diagnosis.`;
+            regAnalogy = `Think of it like a clinical estimate — based on similar patient data, this is the expected measurement.`;
+        }
+        // 6. Weather
+        else if (/weather|rain|sun|temp|cloud/i.test(colLower)) {
+            analogy = `Like a weather forecast predicting tomorrow's weather — it's the most probable outcome based on patterns, but not guaranteed.`;
+        }
+
         if (taskType === 'regression') {
-            return `AutoML analyzed your data and estimates the ${col} will be around ${displayValue}. Think of it like a price estimate — based on similar records, this is the most likely value.`;
+            return `AutoML analyzed your data and estimates the ${col} will be around ${displayValue}. ${regAnalogy}`;
         }
         if (pct >= 80) return `AutoML is ${pct}% confident the ${col} is "${displayValue}"${context}. Out of every 100 similar cases in your data, about ${pct} of them had this result.`;
-        if (pct >= 60) return `AutoML thinks the ${col} is probably "${displayValue}"${context} — ${pct}% confident. Like a weather forecast saying "likely sunny" — it's the best guess but not guaranteed.`;
+        if (pct >= 60) return `AutoML thinks the ${col} is probably "${displayValue}"${context} — ${pct}% confident. ${analogy}`;
         return `AutoML predicts "${displayValue}"${context} but the data has mixed signals. Consider checking if the data looks correct.`;
     };
 
@@ -194,6 +270,11 @@ export default function PredictionResultChart({ result, modelType, taskType, cur
             {/* Value scale — shows where prediction sits */}
             {targetUniqueValues.length > 0 && (
                 <ValueScale uniqueValues={targetUniqueValues} predictedValue={displayValue} />
+            )}
+
+            {/* Similar Records Table */}
+            {similarRecords.length > 0 && (
+                <SimilarRecordsTable records={similarRecords} predictedValue={displayValue} />
             )}
 
             {/* Probability chart */}

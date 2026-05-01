@@ -35,6 +35,7 @@ const CLUSTERING_MODELS = ['kmeans', 'dbscan', 'hierarchical'];
 
 const ModelSelector = ({ filename, columns, onTrainStart, onTrainComplete }) => {
     const [targetColumn, setTargetColumn] = useState('');
+    const [selectedFeatures, setSelectedFeatures] = useState([]);
     const [modelType, setModelType] = useState('logistic_regression');
     const [nClusters, setNClusters] = useState(3);
     const [error, setError] = useState(null);
@@ -56,7 +57,8 @@ const ModelSelector = ({ filename, columns, onTrainStart, onTrainComplete }) => 
                 filename,
                 target_column: targetColumn,
                 model_type: modelType,
-                n_clusters: nClusters
+                n_clusters: nClusters,
+                features: selectedFeatures.length > 0 ? selectedFeatures : undefined
             });
 
             // Save to history
@@ -88,14 +90,14 @@ const ModelSelector = ({ filename, columns, onTrainStart, onTrainComplete }) => 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Target Column {isClustering && '(optional for clustering)'}
+                        What do you want to predict? {columns?.length > 0 ? `(e.g., ${columns.slice(-2).join(', ')})` : ''} {isClustering && '(optional for clustering)'}
                     </label>
                     <select 
                         value={targetColumn} 
                         onChange={(e) => setTargetColumn(e.target.value)}
                         className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                     >
-                        <option value="">— Select Target —</option>
+                        <option value="">— Select what to predict —</option>
                         {columns.map((col) => (
                             <option key={col} value={col}>{col}</option>
                         ))}
@@ -118,6 +120,39 @@ const ModelSelector = ({ filename, columns, onTrainStart, onTrainComplete }) => 
                             </optgroup>
                         ))}
                     </select>
+                </div>
+            </div>
+
+            {/* Feature Selection UI */}
+            <div className="border border-blue-200 rounded-lg bg-white p-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                    What information should the model use to make this prediction?
+                    <span className="text-slate-400 font-normal ml-2">(Optional: Select specific features. Leave empty to use all.)</span>
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                    {columns.filter(c => c !== targetColumn).map((col) => {
+                        const isSelected = selectedFeatures.includes(col);
+                        return (
+                            <button
+                                key={col}
+                                onClick={() => {
+                                    if (isSelected) {
+                                        setSelectedFeatures(selectedFeatures.filter(f => f !== col));
+                                    } else {
+                                        setSelectedFeatures([...selectedFeatures, col]);
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                                    isSelected
+                                        ? 'bg-blue-500 text-white border-blue-500'
+                                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                                }`}
+                            >
+                                {isSelected && <span className="mr-1">✓</span>}
+                                {col}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 

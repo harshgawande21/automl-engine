@@ -70,7 +70,7 @@ def _detect_task(df: pd.DataFrame):
 
 def smart_train(db: Session, filename: str, user_id: str = None,
                 target_column: str = None, model_type: str = None,
-                task_type: str = None) -> dict:
+                task_type: str = None, features: list = None) -> dict:
     """
     Train a model on any dataset with zero ML knowledge required.
     Auto-detects task type, target column, and algorithm.
@@ -86,13 +86,22 @@ def smart_train(db: Session, filename: str, user_id: str = None,
     original_cols = df.columns.tolist()
     df = clean_data(df)
 
-    # Auto-detect if not provided
+    # Auto-detect if not provided (Detect from FULL dataset before filtering features)
     auto_detected = False
     if not task_type or not target_column:
         task_type, target_column, model_type, explanation = _detect_task(df)
         auto_detected = True
     else:
         explanation = f"Training {model_type} for {task_type}."
+
+    if features:
+        cols_to_keep = list(features)
+        if target_column and target_column not in cols_to_keep:
+            cols_to_keep.append(target_column)
+        cols_to_keep = [col for col in cols_to_keep if col in df.columns]
+        # Prevent completely empty feature sets if user didn't select enough valid columns
+        if len(cols_to_keep) > 1 or task_type == 'clustering':
+            df = df[cols_to_keep]
 
     # Encode
     df_encoded = _smart_encode(df, target_col=target_column)

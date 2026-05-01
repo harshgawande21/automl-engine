@@ -16,7 +16,8 @@ from app.ml_pipeline.training.cross_validation import cross_validate_model
 
 def train_model(db: Session, filename: str, target_column: str, model_type: str,
                 task_type: str = "classification", test_size: float = DEFAULT_TEST_SIZE,
-                n_clusters: int = 3, hyperparameters: dict = None, user_id: str = None) -> dict:
+                n_clusters: int = 3, hyperparameters: dict = None, user_id: str = None,
+                features: list = None) -> dict:
     if not filename:
         raise HTTPException(400, "No dataset filename provided. Please upload a dataset first.")
     
@@ -26,6 +27,16 @@ def train_model(db: Session, filename: str, target_column: str, model_type: str,
     
     df = clean_data(df)
     df = encode_features(df)
+
+    if features:
+        cols_to_keep = list(features)
+        if target_column and target_column not in cols_to_keep:
+            cols_to_keep.append(target_column)
+        
+        # Ensure only columns that exist in the dataframe are kept
+        cols_to_keep = [col for col in cols_to_keep if col in df.columns]
+        if cols_to_keep:
+            df = df[cols_to_keep]
 
     is_clustering = model_type in CLUSTERING_MODELS
 

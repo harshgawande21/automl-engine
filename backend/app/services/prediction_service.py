@@ -86,11 +86,45 @@ def predict_single(db: Session, model_id: str, features: dict, user_id: str = No
             # Numeric target — just use the value directly
             original_label = str(result[0])
 
+    similar_records = []
+    try:
+        from app.utils.file_handler import load_dataframe as _load
+        
+        # safely extract the original dataset filename
+        dataset_name = record.filename
+        if ".csv_" in record.filename:
+            dataset_name = record.filename.split('.csv_')[0] + '.csv'
+        elif record.name.startswith("Auto-trained on "):
+            dataset_name = record.name.replace("Auto-trained on ", "")
+            
+        orig_df = _load(dataset_name)
+        if record.task_type == "clustering":
+            labels = record.metrics.get("labels", [])
+            pred_cluster = int(result[0])
+            indices = [i for i, l in enumerate(labels) if l == pred_cluster]
+            if indices:
+                import random
+                sample_indices = random.sample(indices, min(3, len(indices)))
+                similar_records = orig_df.iloc[sample_indices].to_dict(orient="records")
+        elif record.target_column and record.target_column in orig_df.columns:
+            if record.task_type == "classification":
+                match_val = original_label if original_label is not None else result[0]
+                matched_df = orig_df[orig_df[record.target_column].astype(str) == str(match_val)]
+                if not matched_df.empty:
+                    similar_records = matched_df.sample(min(3, len(matched_df))).to_dict(orient="records")
+            elif record.task_type == "regression":
+                pred_val = float(result[0])
+                orig_df['__diff'] = (pd.to_numeric(orig_df[record.target_column], errors='coerce') - pred_val).abs()
+                matched_df = orig_df.sort_values('__diff').head(3).drop(columns=['__diff'])
+                similar_records = matched_df.to_dict(orient="records")
+    except Exception as e:
+        print("Error loading similar records:", e)
+
     pred = crud.create_prediction(
         db,
         model_id=model_id,
         input_data=features,
-        result={"prediction": result, "original_label": original_label},
+        result={"prediction": result, "original_label": original_label, "similar_records": similar_records},
         confidence=confidence,
         prediction_type="single",
         latency_ms=t.elapsed_ms,
@@ -103,6 +137,7 @@ def predict_single(db: Session, model_id: str, features: dict, user_id: str = No
         "original_label": original_label,
         "target_column": record.target_column,
         "target_unique_values": target_unique_values,
+        "similar_records": similar_records,
         "confidence": confidence,
         "probabilities": probabilities,
         "latency_ms": t.elapsed_ms,

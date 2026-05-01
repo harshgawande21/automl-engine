@@ -72,9 +72,9 @@ const ModelComparison = ({ filename, columns }) => {
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                    <label>Target Column</label>
+                    <label>What do you want to predict? {columns?.length > 0 ? `(e.g., ${columns.slice(-2).join(', ')})` : ''}</label>
                     <select value={targetColumn} onChange={(e) => setTargetColumn(e.target.value)} style={{ maxWidth: 300 }}>
-                        <option value="">— Select Target —</option>
+                        <option value="">— Select what to predict —</option>
                         {columns.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>

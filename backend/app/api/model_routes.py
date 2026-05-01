@@ -11,15 +11,19 @@ from app.utils.response_builder import success_response
 router = APIRouter(prefix="/api/models", tags=["models"])
 
 
+from typing import List, Optional
+from fastapi import Query
+
 @router.post("/smart-train")
 def smart_train_endpoint(
     filename: str,
     target_column: str = None,
+    features: Optional[List[str]] = Query(None),
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """One-click smart training — auto-detects everything."""
-    result = smart_train(db, filename=filename, user_id=user["id"], target_column=target_column)
+    result = smart_train(db, filename=filename, user_id=user["id"], target_column=target_column, features=features)
     return success_response(result, "Model trained successfully")
 
 
@@ -29,7 +33,7 @@ def train(req: TrainRequest, user: dict = Depends(get_current_user), db: Session
         db, req.filename, req.target_column, req.model_type,
         task_type=req.task_type, test_size=req.test_size,
         n_clusters=req.n_clusters, hyperparameters=req.hyperparameters,
-        user_id=user["id"],
+        user_id=user["id"], features=req.features
     )
     return success_response(result, "Model trained successfully")
 

@@ -57,6 +57,7 @@ class TrainRequest(BaseModel):
     test_size: float = 0.2
     n_clusters: int = 3
     hyperparameters: Optional[Dict[str, Any]] = None
+    features: Optional[List[str]] = None
 
 class ModelResponse(BaseModel):
     id: str

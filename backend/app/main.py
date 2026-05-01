@@ -24,8 +24,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
         "https://automl-engine.vercel.app",
         "https://automl-engine-1pjqt0txl-harshs-projects-c504ae82.vercel.app",
     ],
